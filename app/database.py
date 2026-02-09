@@ -1,0 +1,64 @@
+import enum
+from sqlalchemy import create_engine, Column, String, Integer, DateTime, Enum, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, relationship
+from datetime import datetime
+import uuid
+
+# Connect to Docker Postgres
+DATABASE_URL = "postgresql://user:password@localhost:5432/urumi_db"
+
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+# --- 1. ENUMS (Type Safety) ---
+class StoreStatus(str, enum.Enum):
+    QUEUED = "QUEUED"
+    PROVISIONING = "PROVISIONING"
+    READY = "READY"
+    FAILED = "FAILED"
+    DELETED = "DELETED"
+
+# --- 2. MODELS ---
+class Store(Base):
+    __tablename__ = "stores"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, unique=True, index=True)
+    status = Column(Enum(StoreStatus), default=StoreStatus.QUEUED)
+    url = Column(String, nullable=True)
+    
+    # Credentials (In prod, these should be encrypted!)
+    admin_user = Column(String, default="admin")
+    admin_password = Column(String, default="password")
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationship to logs
+    audit_logs = relationship("AuditLog", back_populates="store")
+
+class AuditLog(Base):
+    """
+    Separate table for history. 
+    Matches requirement: 'Audit log: who created/deleted what and when'
+    """
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    store_id = Column(String, ForeignKey("stores.id"))
+    event = Column(String) # e.g., "Provisioning Started", "Helm Install Complete"
+    details = Column(String, nullable=True) # Error messages or metadata
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+    store = relationship("Store", back_populates="audit_logs")
+
+# Create tables
+Base.metadata.create_all(bind=engine)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
