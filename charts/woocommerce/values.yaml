@@ -1,0 +1,38 @@
+# 1. WordPress Image Configuration
+wordpress:
+  image: wordpress:latest
+  port: 80
+
+# 2. Networking (Service)
+service:
+  type: ClusterIP
+  port: 80
+
+# 3. The "Front Door" (Ingress)
+ingress:
+  enabled: true
+  className: "nginx"
+  host: "store-default.local" # Python API will change this per store
+
+# 4. Database Configuration (Passed to the Dependency)
+mariadb:
+  enabled: true
+  image:
+    tag: "latest"
+  auth:
+    rootPassword: "rootpassword"
+    database: "wordpress"
+    username: "bn_wordpress"
+    password: "dbpassword"
+  primary:
+    persistence:
+      enabled: false # Keep false for local testing (speed)
+
+# 5. Guardrails (Resource Quotas - Stand Out Feature)
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "250m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"

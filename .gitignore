@@ -1,0 +1,30 @@
+# --- Python & uv ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+.coverage
+htmlcov/
+
+# --- Environment Variables (Security) ---
+.env
+.env.local
+
+# --- Helm  ---
+
+charts/**/charts/*.tgz
+charts/**/tmpcharts/
+
+# --- IDEs ---
+.vscode/
+# --- Mac OS ---
+.DS_Store
+
+
+# --- Docker ---
+docker-compose.override.yml

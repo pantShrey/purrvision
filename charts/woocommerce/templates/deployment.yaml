@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "woocommerce.fullname" . }}
+  labels:
+    {{- include "woocommerce.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "woocommerce.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "woocommerce.selectorLabels" . | nindent 8 }}
+    spec:
+      # 1. SHARED VOLUME (The Bridge)
+      volumes:
+        - name: wordpress-data
+          emptyDir: {}
+
+      # 2. INIT CONTAINER ( The Downloader)
+      initContainers:
+        - name: download-plugins
+          image: alpine:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Downloading WooCommerce..."
+              mkdir -p /var/www/html/wp-content/plugins
+              cd /var/www/html/wp-content/plugins
+              # Download the plugin zip directly
+              wget -O woo.zip https://downloads.wordpress.org/plugin/woocommerce.latest-stable.zip
+              unzip -q -o woo.zip
+              rm woo.zip
+              echo "Done!"
+          volumeMounts:
+            - name: wordpress-data
+              mountPath: /var/www/html
+
+      # 3. MAIN CONTAINER (WordPress)
+      containers:
+        - name: wordpress
+          image: "{{ .Values.wordpress.image }}"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WORDPRESS_DB_HOST
+              value: "{{ .Release.Name }}-mariadb"
+            - name: WORDPRESS_DB_USER
+              value: "{{ .Values.mariadb.auth.username }}"
+            - name: WORDPRESS_DB_NAME
+              value: "{{ .Values.mariadb.auth.database }}"
+            - name: WORDPRESS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "woocommerce.fullname" . }}-auth
+                  key: wordpress-password
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          
+          # MOUNT THE SHARED VOLUME
+          volumeMounts:
+            - name: wordpress-data
+              mountPath: /var/www/html
