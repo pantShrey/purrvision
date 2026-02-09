@@ -14,13 +14,12 @@ spec:
       labels:
         {{- include "woocommerce.selectorLabels" . | nindent 8 }}
     spec:
-      # 1. SHARED VOLUME (The Bridge)
       volumes:
         - name: wordpress-data
           emptyDir: {}
 
-      # 2. INIT CONTAINER ( The Downloader)
       initContainers:
+        # 1. DOWNLOADER (Runs as Root)
         - name: download-plugins
           image: alpine:latest
           command: ["/bin/sh", "-c"]
@@ -29,17 +28,28 @@ spec:
               echo "Downloading WooCommerce..."
               mkdir -p /var/www/html/wp-content/plugins
               cd /var/www/html/wp-content/plugins
-              # Download the plugin zip directly
               wget -O woo.zip https://downloads.wordpress.org/plugin/woocommerce.latest-stable.zip
               unzip -q -o woo.zip
               rm woo.zip
-              echo "Done!"
+              echo "Download Complete."
           volumeMounts:
             - name: wordpress-data
               mountPath: /var/www/html
 
-      # 3. MAIN CONTAINER (WordPress)
+        # 2. PERMISSION FIXER (The Fix!)
+        - name: fix-permissions
+          image: alpine:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Fixing permissions for www-data (33:33)..."
+              chown -R 33:33 /var/www/html
+          volumeMounts:
+            - name: wordpress-data
+              mountPath: /var/www/html
+
       containers:
+        # 3. MAIN APP (WordPress)
         - name: wordpress
           image: "{{ .Values.wordpress.image }}"
           imagePullPolicy: IfNotPresent
@@ -58,11 +68,33 @@ spec:
           ports:
             - name: http
               containerPort: 80
-              protocol: TCP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          
-          # MOUNT THE SHARED VOLUME
           volumeMounts:
             - name: wordpress-data
               mountPath: /var/www/html
+
+        # 4. SIDECAR (WP-CLI Tool)
+        - name: wp-cli
+          image: wordpress:cli
+          # Keep it alive forever so we can exec into it
+          command: ["/bin/sh", "-c", "sleep infinity"]
+          env:
+            - name: WORDPRESS_DB_HOST
+              value: "{{ .Release.Name }}-mariadb"
+            - name: WORDPRESS_DB_USER
+              value: "{{ .Values.mariadb.auth.username }}"
+            - name: WORDPRESS_DB_NAME
+              value: "{{ .Values.mariadb.auth.database }}"
+            - name: WORDPRESS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "woocommerce.fullname" . }}-auth
+                  key: wordpress-password
+          volumeMounts:
+            - name: wordpress-data
+              mountPath: /var/www/html
+          # Run as www-data to match permissions
+          securityContext:
+            runAsUser: 33
+            runAsGroup: 33
