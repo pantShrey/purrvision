@@ -62,7 +62,7 @@ def provision_store_task(store_id: str):
         values_file = f"./charts/woocommerce/values-{env}.yaml"
         if not os.path.exists(values_file):
             raise Exception(f"Values file missing: {values_file}")
-            
+
         log_audit(db, store_id, f"Using Environment: {env}")
         release_name = f"store-{store.name}"
         namespace = release_name
@@ -107,7 +107,6 @@ def provision_store_task(store_id: str):
         store.status = StoreStatus.READY
         store.url = f"{protocol}://{host_url}"
         
-        # Save the Helm output to the audit log (Great for debugging/demos)
         log_audit(db, store_id, "Provisioning Complete", {
             "url": store.url, 
             "helm_output": helm_output[:500] + "..." if len(helm_output) > 500 else helm_output

@@ -28,7 +28,6 @@ mariadb:
   primary:
     persistence:
       enabled: false # Default local
-    # FIX: Pass resources to MariaDB so Quota accepts it
     resources:
       requests:
         cpu: 250m

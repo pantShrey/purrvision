@@ -36,7 +36,6 @@ spec:
           volumeMounts:
             - name: wordpress-data
               mountPath: /var/www/html
-          # FIX: Apply Init Resources
           resources:
             {{- toYaml .Values.resources.init | nindent 12 }}
 
@@ -51,7 +50,6 @@ spec:
           volumeMounts:
             - name: wordpress-data
               mountPath: /var/www/html
-          # FIX: Apply Init Resources
           resources:
             {{- toYaml .Values.resources.init | nindent 12 }}
 
@@ -76,7 +74,6 @@ spec:
             - name: http
               containerPort: 80
           
-          # FIX: Relaxed Probes for Local Dev
           startupProbe:
             httpGet:
               path: /wp-login.php
@@ -103,7 +100,6 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 3
             
-          # FIX: Apply Main Resources
           resources:
             {{- toYaml .Values.resources.main | nindent 12 }}
             
@@ -171,6 +167,5 @@ spec:
             runAsUser: 33
             runAsGroup: 33
             
-          # FIX: Apply Sidecar Resources
           resources:
             {{- toYaml .Values.resources.sidecar | nindent 12 }}

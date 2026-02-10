@@ -32,7 +32,6 @@ spec:
     - protocol: TCP
       port: 53
       
-  # FIX: Allow Internet Access for Downloads (HTTP/HTTPS)
   - ports:
     - protocol: TCP
       port: 80
