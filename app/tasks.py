@@ -62,7 +62,7 @@ def provision_store_task(store_id: str):
         
         release_name = f"store-{store.name}"
         namespace = release_name
-        host_url = f"{store.name}.local"
+        host_url = f"{store.name}.127.0.0.1.nip.io"
 
         # 2. HELM INSTALL
         log_audit(db, store_id, "Running Helm", {"release": release_name})
@@ -70,6 +70,7 @@ def provision_store_task(store_id: str):
             "helm", "upgrade", "--install", release_name, "./charts/woocommerce",
             "--create-namespace", "--namespace", namespace,
             "--set", f"ingress.host={host_url}",
+            "--set", "ingress.enabled=true",
             "--set", "mariadb.primary.persistence.enabled=false",
             "--atomic",
             "--wait",

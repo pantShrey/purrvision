@@ -12,7 +12,9 @@ service:
 ingress:
   enabled: true
   className: "nginx"
-  host: "store-default.local" # Python API will change this per store
+  annotation: 
+    nginx.ingress.kubernetes.io/proxy-body-size: "64m"
+  host: "localhost" # Python API will change this per store
 
 # 4. Database Configuration (Passed to the Dependency)
 mariadb:
