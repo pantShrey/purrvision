@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ include "woocommerce.fullname" . }}-quota
+  labels:
+    {{- include "woocommerce.labels" . | nindent 4 }}
+spec:
+  hard:
+    pods: "15"
+    requests.cpu: "2"     # Was 1
+    requests.memory: "2Gi" # Was 1Gi
+    limits.cpu: "4"       # Was 2 (We need ~2.5, so 4 is safe)
+    limits.memory: "4Gi"  # Was 2Gi

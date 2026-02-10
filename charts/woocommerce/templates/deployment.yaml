@@ -19,12 +19,13 @@ spec:
           emptyDir: {}
 
       initContainers:
-        # 1. DOWNLOADER (Runs as Root)
+        # 1. DOWNLOADER
         - name: download-plugins
           image: alpine:latest
           command: ["/bin/sh", "-c"]
           args:
             - |
+              set -ex
               echo "Downloading WooCommerce..."
               mkdir -p /var/www/html/wp-content/plugins
               cd /var/www/html/wp-content/plugins
@@ -35,8 +36,11 @@ spec:
           volumeMounts:
             - name: wordpress-data
               mountPath: /var/www/html
+          # FIX: Apply Init Resources
+          resources:
+            {{- toYaml .Values.resources.init | nindent 12 }}
 
-        # 2. PERMISSION FIXER (The Fix!)
+        # 2. PERMISSION FIXER
         - name: fix-permissions
           image: alpine:latest
           command: ["/bin/sh", "-c"]
@@ -47,6 +51,9 @@ spec:
           volumeMounts:
             - name: wordpress-data
               mountPath: /var/www/html
+          # FIX: Apply Init Resources
+          resources:
+            {{- toYaml .Values.resources.init | nindent 12 }}
 
       containers:
         # 3. MAIN APP (WordPress)
@@ -69,34 +76,76 @@ spec:
             - name: http
               containerPort: 80
           
-          readinessProbe:
+          # FIX: Relaxed Probes for Local Dev
+          startupProbe:
             httpGet:
               path: /wp-login.php
               port: 80
-            initialDelaySeconds: 60  
+            failureThreshold: 30
             periodSeconds: 10
-            timeoutSeconds: 5        
-            failureThreshold: 6
-            
+            timeoutSeconds: 5
+          
+          # 2. Liveness Probe (Keeps it running after startup)
           livenessProbe:
             httpGet:
               path: /wp-login.php
               port: 80
-            initialDelaySeconds: 120  
             periodSeconds: 20
-            timeoutSeconds: 10        
+            timeoutSeconds: 5
             failureThreshold: 5
+            
+          # 3. Readiness Probe (Controls traffic)
+          readinessProbe:
+            httpGet:
+              path: /wp-login.php
+              port: 80
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+            
+          # FIX: Apply Main Resources
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+            {{- toYaml .Values.resources.main | nindent 12 }}
+            
           volumeMounts:
             - name: wordpress-data
               mountPath: /var/www/html
 
-        # 4. SIDECAR (WP-CLI Tool)
+        # 4. SIDECAR (Active Provisioner)
         - name: wp-cli
           image: wordpress:cli
-          # Keep it alive forever so we can exec into it
-          command: ["/bin/sh", "-c", "sleep infinity"]
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Waiting for Database..."
+              until wp db check; do 
+                echo "DB not ready, sleeping..."
+                sleep 5
+              done
+              echo "Database is UP!"
+
+              if ! wp core is-installed; then
+                echo "Installing WordPress..."
+                wp core install \
+                  --url="{{ .Values.ingress.protocol }}://{{ .Values.ingress.host }}" \
+                  --title="{{ .Values.wordpress.title }}" \
+                  --admin_user="{{ .Values.wordpress.admin.user }}" \
+                  --admin_password="${WORDPRESS_ADMIN_PASSWORD}" \
+                  --admin_email="{{ .Values.wordpress.admin.email }}" \
+                  --skip-email
+                
+                echo "Activating WooCommerce..."
+                wp plugin activate woocommerce
+                
+                echo "Setting Permalink Structure..."
+                wp rewrite structure /%postname%/
+              else
+                echo "WordPress is already installed. Skipping."
+              fi
+
+              echo "Provisioning Complete. Sleeping..."
+              sleep infinity
+
           env:
             - name: WORDPRESS_DB_HOST
               value: "{{ .Release.Name }}-mariadb"
@@ -109,10 +158,19 @@ spec:
                 secretKeyRef:
                   name: {{ include "woocommerce.fullname" . }}-auth
                   key: wordpress-password
+            - name: WORDPRESS_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "woocommerce.fullname" . }}-auth
+                  key: wordpress-admin-password
+          
           volumeMounts:
             - name: wordpress-data
               mountPath: /var/www/html
-          # Run as www-data to match permissions
           securityContext:
             runAsUser: 33
             runAsGroup: 33
+            
+          # FIX: Apply Sidecar Resources
+          resources:
+            {{- toYaml .Values.resources.sidecar | nindent 12 }}

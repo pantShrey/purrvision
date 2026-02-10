@@ -2,21 +2,21 @@
 wordpress:
   image: wordpress:latest
   port: 80
+  # Admin credentials handled via secrets/Python
 
-# 2. Networking (Service)
+# 2. Networking
 service:
   type: ClusterIP
   port: 80
 
-# 3. The "Front Door" (Ingress)
 ingress:
   enabled: true
   className: "nginx"
-  annotation: 
+  annotations: 
     nginx.ingress.kubernetes.io/proxy-body-size: "64m"
-  host: "localhost" # Python API will change this per store
+  host: "localhost"
 
-# 4. Database Configuration (Passed to the Dependency)
+# 3. Database (Bitnami MariaDB)
 mariadb:
   enabled: true
   image:
@@ -24,15 +24,46 @@ mariadb:
   auth:
     username: "urumi_user"
     database: "urumi_store"
+    # Passwords injected by Python
   primary:
     persistence:
-      enabled: false # Keep false for local testing (speed)
+      enabled: false # Default local
+    # FIX: Pass resources to MariaDB so Quota accepts it
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
 
-# 5. Guardrails (Resource Quotas - Stand Out Feature)
+# 4. Resource Profiles (The Fix for Quotas & Performance)
 resources:
-  requests:
-    memory: "256Mi"
-    cpu: "250m"
-  limits:
-    memory: "512Mi"
-    cpu: "500m"
+  # Tiny: For Init Containers (run once, then die)
+  # High CPU limit to unzip fast!
+  init:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "1000m" 
+      memory: "256Mi"
+  
+  # Small: For Sidecars (WP-CLI)
+  # High CPU limit so it installs fast without starving WordPress
+  sidecar:
+    requests:
+      cpu: "50m"
+      memory: "128Mi"
+    limits:
+      cpu: "1000m"
+      memory: "512Mi"
+
+  # Medium: For the Main WordPress App
+  main:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+    limits:
+      cpu: "1000m" 
+      memory: "512Mi"
