@@ -1,6 +1,7 @@
 import subprocess
 import time
 import json
+import os
 from sqlalchemy.orm import Session
 from kubernetes import client, config
 from .database import SessionLocal, Store, AuditLog, StoreStatus
@@ -14,8 +15,13 @@ except:
 v1 = client.CoreV1Api()
 
 def log_audit(db: Session, store_id: str, event: str, details: dict = None):
+    # FIX: Print the details so you can see the error in the terminal!
     details_str = json.dumps(details) if details else ""
-    print(f"[{store_id}] {event}")
+    if details:
+        print(f"[{store_id}] {event} - {details_str}")
+    else:
+        print(f"[{store_id}] {event}")
+        
     log = AuditLog(store_id=store_id, event=event, details=details_str)
     db.add(log)
     db.commit()
@@ -33,6 +39,7 @@ def run_command(cmd_list, timeout=300):
     except subprocess.TimeoutExpired:
         raise Exception(f"Command timed out after {timeout}s: {' '.join(cmd_list)}")
     except subprocess.CalledProcessError as e:
+        # Capture both stdout and stderr for debugging
         error_msg = e.stderr.strip() or e.stdout.strip()
         raise Exception(f"Command failed: {error_msg}")
 
@@ -56,39 +63,52 @@ def provision_store_task(store_id: str):
         return
 
     try:
-        # 1. Update Status
         store.status = StoreStatus.PROVISIONING
         log_audit(db, store_id, "Provisioning Started")
         
+        # 1. Determine Environment (Local vs Prod)
+        env = os.getenv("URUMI_ENV", "local") 
+        values_file = f"./charts/woocommerce/values-{env}.yaml"
+        
+        # FIX: Check if the file actually exists!
+        if not os.path.exists(values_file):
+            raise Exception(f"Values file not found at: {values_file}. Did you create charts/woocommerce/values-local.yaml?")
+
+        log_audit(db, store_id, f"Using Environment: {env}")
+
         release_name = f"store-{store.name}"
         namespace = release_name
-        host_url = f"{store.name}.127.0.0.1.nip.io"
+        
+        # 2. Dynamic Host Logic
+        if env == "local":
+            host_url = f"{store.name}.127.0.0.1.nip.io"
+        else:
+            host_url = f"{store.name}.urumi.store" # Prod domain
 
-        # 2. HELM INSTALL
+        # 3. HELM INSTALL
         log_audit(db, store_id, "Running Helm", {"release": release_name})
         helm_cmd = [
             "helm", "upgrade", "--install", release_name, "./charts/woocommerce",
             "--create-namespace", "--namespace", namespace,
+            "-f", values_file,
             "--set", f"ingress.host={host_url}",
-            "--set", "ingress.enabled=true",
-            "--set", "mariadb.primary.persistence.enabled=false",
+            "--set", f"mariadb.auth.password={store.admin_password}",
+            "--set", f"mariadb.auth.rootPassword={store.admin_password}",
+            "--set", f"wordpress.db.password={store.admin_password}",
             "--atomic",
             "--wait",
             "--timeout", "5m"
         ]
         run_command(helm_cmd)
 
-        # 3. WAIT FOR POD
+        # 4. WAIT FOR POD
         pod_name = wait_for_pod_ready(namespace, "app.kubernetes.io/name=woocommerce")
 
-        # 4. CONFIGURE WORDPRESS (Using Sidecar)
+        # 5. CONFIGURE WORDPRESS (Using Sidecar)
         log_audit(db, store_id, "Configuring WordPress", {"pod": pod_name, "container": "wp-cli"})
         
-        # Retry loop for WP-CLI (Database might be warming up)
         for attempt in range(5):
             try:
-                # Install Core
-                # Note: We target '-c wp-cli' explicitly!
                 run_command([
                     "kubectl", "exec", "-n", namespace, pod_name, "-c", "wp-cli", "--",
                     "wp", "core", "install",
@@ -100,25 +120,18 @@ def provision_store_task(store_id: str):
                     "--skip-email"
                 ], timeout=60)
                 
-                # Activate WooCommerce
                 run_command([
                     "kubectl", "exec", "-n", namespace, pod_name, "-c", "wp-cli", "--",
                     "wp", "plugin", "activate", "woocommerce"
                 ], timeout=60)
                 
-                # OPTIONAL: Set Rewrite Structure (Good for permalinks)
-                run_command([
-                    "kubectl", "exec", "-n", namespace, pod_name, "-c", "wp-cli", "--",
-                    "wp", "rewrite", "structure", "/%postname%/"
-                ], timeout=60)
-                
-                break # Success!
+                break
             except Exception as e:
                 if attempt == 4: raise e
                 print(f"WP-CLI retry {attempt}: {e}")
                 time.sleep(5)
 
-        # 5. SUCCESS
+        # 6. SUCCESS
         store.status = StoreStatus.READY
         store.url = f"http://{host_url}"
         log_audit(db, store_id, "Provisioning Complete", {"url": store.url})
@@ -126,10 +139,12 @@ def provision_store_task(store_id: str):
 
     except Exception as e:
         store.status = StoreStatus.FAILED
+        # The error will now print to your terminal!
         log_audit(db, store_id, "Provisioning Failed", {"error": str(e)})
         db.commit()
     finally:
         db.close()
+
 def delete_store_task(store_id: str):
     db: Session = SessionLocal()
     store = db.query(Store).filter(Store.id == store_id).first()
@@ -140,30 +155,29 @@ def delete_store_task(store_id: str):
     try:
         log_audit(db, store_id, "Deletion Started")
         
-        release_name = f"store-{store.name}"
+        original_name = store.name
+        release_name = f"store-{original_name}"
         namespace = release_name
 
         # 1. HELM UNINSTALL
         log_audit(db, store_id, "Uninstalling Helm Chart")
-        # We use --wait to ensure resources are gone before we delete the namespace
         run_command(["helm", "uninstall", release_name, "-n", namespace, "--wait"], timeout=120)
 
-        # 2. DELETE NAMESPACE (Clean up PVCs, Secrets, etc)
+        # 2. DELETE NAMESPACE
         log_audit(db, store_id, "Deleting Namespace")
         run_command(["kubectl", "delete", "ns", namespace], timeout=120)
         
-        # 3. RENAME STORE (Free up the name for new users)
-        # Now that resources are gone, we can safely rename the DB record
-        new_name = f"{store.name}-deleted-{int(time.time())}"
+        # 3. RENAME STORE
+        new_name = f"{original_name}-deleted-{int(time.time())}"
         store.name = new_name
         store.status = StoreStatus.DELETED
-        store.url = None # Remove URL since it's dead
+        store.url = None 
+        
         log_audit(db, store_id, "Deletion Complete", {"renamed_to": new_name})
         db.commit()
 
     except Exception as e:
         log_audit(db, store_id, "Deletion Failed", {"error": str(e)})
-        # We typically leave it as DELETING or set to FAILED so admin can investigate
         store.status = StoreStatus.FAILED 
         db.commit()
     finally:

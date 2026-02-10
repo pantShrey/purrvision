@@ -1,0 +1,8 @@
+# Local Development Overrides
+mariadb:
+  primary:
+    persistence:
+      enabled: false # Fast startup, no disk usage
+
+ingress:
+  host: "127.0.0.1.nip.io"

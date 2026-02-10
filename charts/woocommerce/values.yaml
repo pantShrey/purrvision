@@ -22,10 +22,8 @@ mariadb:
   image:
     tag: "latest"
   auth:
-    rootPassword: "rootpassword"
-    database: "wordpress"
-    username: "bn_wordpress"
-    password: "dbpassword"
+    username: "urumi_user"
+    database: "urumi_store"
   primary:
     persistence:
       enabled: false # Keep false for local testing (speed)

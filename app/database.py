@@ -4,9 +4,9 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 import uuid
-
+import os
 # Connect to Docker Postgres
-DATABASE_URL = "postgresql://user:password@localhost:5432/urumi_db"
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/urumi_db")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -21,23 +21,27 @@ class StoreStatus(str, enum.Enum):
     DELETING = "DELETING"
     DELETED = "DELETED"
 
+class StoreEngine(str, enum.Enum):
+    WOOCOMMERCE = "woocommerce"
+    MEDUSA = "medusa"
+
 class Store(Base):
     __tablename__ = "stores"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, unique=True, index=True)
     status = Column(Enum(StoreStatus), default=StoreStatus.QUEUED)
-    url = Column(String, nullable=True)
     
-    wp_admin_url = Column(String, nullable=True)
+    
+    engine = Column(Enum(StoreEngine), default=StoreEngine.WOOCOMMERCE)
+    
+    url = Column(String, nullable=True)
     
     # Credentials
     admin_user = Column(String, default="admin")
-    admin_password = Column(String, default="admin")
+    admin_password = Column(String)
     
     created_at = Column(DateTime, default=datetime.utcnow)
-    
-    # Relationship to logs
     audit_logs = relationship("AuditLog", back_populates="store")
 
 class AuditLog(Base):

@@ -1,0 +1,11 @@
+# Production Overrides
+mariadb:
+  primary:
+    persistence:
+      enabled: true
+      size: 2Gi
+      # On cloud/VPS, leave empty to use default class (gp2, standard, etc)
+      storageClass: "" 
+
+ingress:
+  host: "store.urumi.ai" # Example production domain

@@ -68,6 +68,24 @@ spec:
           ports:
             - name: http
               containerPort: 80
+          
+          readinessProbe:
+            httpGet:
+              path: /wp-login.php
+              port: 80
+            initialDelaySeconds: 60  
+            periodSeconds: 10
+            timeoutSeconds: 5        
+            failureThreshold: 6
+            
+          livenessProbe:
+            httpGet:
+              path: /wp-login.php
+              port: 80
+            initialDelaySeconds: 120  
+            periodSeconds: 20
+            timeoutSeconds: 10        
+            failureThreshold: 5
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
