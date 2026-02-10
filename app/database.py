@@ -12,6 +12,7 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+
 class StoreStatus(str, enum.Enum):
     QUEUED = "QUEUED"
     PROVISIONING = "PROVISIONING"
@@ -28,9 +29,11 @@ class Store(Base):
     status = Column(Enum(StoreStatus), default=StoreStatus.QUEUED)
     url = Column(String, nullable=True)
     
-    # Credentials (In prod, these should be encrypted!)
+    wp_admin_url = Column(String, nullable=True)
+    
+    # Credentials
     admin_user = Column(String, default="admin")
-    admin_password = Column(String, default="password")
+    admin_password = Column(String, default="admin")
     
     created_at = Column(DateTime, default=datetime.utcnow)
     
@@ -46,8 +49,8 @@ class AuditLog(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     store_id = Column(String, ForeignKey("stores.id"))
-    event = Column(String) # e.g., "Provisioning Started", "Helm Install Complete"
-    details = Column(String, nullable=True) # Error messages or metadata
+    event = Column(String) 
+    details = Column(String, nullable=True) 
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     store = relationship("Store", back_populates="audit_logs")

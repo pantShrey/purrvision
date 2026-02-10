@@ -151,10 +151,14 @@ def delete_store_task(store_id: str):
         # 2. DELETE NAMESPACE (Clean up PVCs, Secrets, etc)
         log_audit(db, store_id, "Deleting Namespace")
         run_command(["kubectl", "delete", "ns", namespace], timeout=120)
-
+        
+        # 3. RENAME STORE (Free up the name for new users)
+        # Now that resources are gone, we can safely rename the DB record
+        new_name = f"{store.name}-deleted-{int(time.time())}"
+        store.name = new_name
         store.status = StoreStatus.DELETED
         store.url = None # Remove URL since it's dead
-        log_audit(db, store_id, "Deletion Complete")
+        log_audit(db, store_id, "Deletion Complete", {"renamed_to": new_name})
         db.commit()
 
     except Exception as e:
