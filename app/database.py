@@ -12,15 +12,14 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# --- 1. ENUMS (Type Safety) ---
 class StoreStatus(str, enum.Enum):
     QUEUED = "QUEUED"
     PROVISIONING = "PROVISIONING"
     READY = "READY"
     FAILED = "FAILED"
+    DELETING = "DELETING"
     DELETED = "DELETED"
 
-# --- 2. MODELS ---
 class Store(Base):
     __tablename__ = "stores"
 

@@ -4,8 +4,9 @@ from sqlalchemy.orm import Session
 from redis import Redis
 from rq import Queue
 from .database import get_db, Store, engine
-from .tasks import provision_store_task # Import the logic
-
+from .tasks import provision_store_task 
+from app.tasks import delete_store_task
+from typing import List
 app = FastAPI()
 
 # Connect to Redis
@@ -53,6 +54,18 @@ def get_store(store_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Store not found")
     return store
 
-@app.get("/stores")
+@app.get("/stores", response_model=List[StoreResponse])
 def list_stores(db: Session = Depends(get_db)):
     return db.query(Store).all()
+@app.delete("/stores/{store_id}", status_code=202)
+def delete_store(store_id: str, db: Session = Depends(get_db)):
+    store = db.query(Store).filter(Store.id == store_id).first()
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found")
+
+    store.status = "DELETING"
+    db.commit()
+
+    q.enqueue(delete_store_task, store.id)
+
+    return {"id": store.id, "status": "DELETING", "message": "Deletion started"}

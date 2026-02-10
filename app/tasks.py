@@ -129,3 +129,37 @@ def provision_store_task(store_id: str):
         db.commit()
     finally:
         db.close()
+def delete_store_task(store_id: str):
+    db: Session = SessionLocal()
+    store = db.query(Store).filter(Store.id == store_id).first()
+    
+    if not store:
+        return
+
+    try:
+        log_audit(db, store_id, "Deletion Started")
+        
+        release_name = f"store-{store.name}"
+        namespace = release_name
+
+        # 1. HELM UNINSTALL
+        log_audit(db, store_id, "Uninstalling Helm Chart")
+        # We use --wait to ensure resources are gone before we delete the namespace
+        run_command(["helm", "uninstall", release_name, "-n", namespace, "--wait"], timeout=120)
+
+        # 2. DELETE NAMESPACE (Clean up PVCs, Secrets, etc)
+        log_audit(db, store_id, "Deleting Namespace")
+        run_command(["kubectl", "delete", "ns", namespace], timeout=120)
+
+        store.status = StoreStatus.DELETED
+        store.url = None # Remove URL since it's dead
+        log_audit(db, store_id, "Deletion Complete")
+        db.commit()
+
+    except Exception as e:
+        log_audit(db, store_id, "Deletion Failed", {"error": str(e)})
+        # We typically leave it as DELETING or set to FAILED so admin can investigate
+        store.status = StoreStatus.FAILED 
+        db.commit()
+    finally:
+        db.close()
