@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, computed_field
 from sqlalchemy.orm import Session
 from redis import Redis
@@ -12,7 +13,13 @@ import string
 import os
 
 app = FastAPI()
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # For local dev, allow all. In prod, lock this down.
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 redis_conn = Redis(host=REDIS_HOST, port=6379)
 q = Queue(connection=redis_conn)
