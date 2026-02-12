@@ -1,0 +1,70 @@
+services:
+  # 1. Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: urumi_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      # CRITICAL: Share Host Kubeconfig so container can talk to Kind
+      - ~/.kube/config:/root/.kube/config:ro
+      # Allow access to charts for hot-reloading if needed
+      - ./charts:/app/charts
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://urumi:urumi_pass@db:5432/urumi
+    depends_on:
+      - db
+      - redis
+
+  # 2. Worker (Celery)
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: urumi_worker
+    restart: always
+    command: celery -A app.worker.celery_app worker --loglevel=info
+    volumes:
+      - ~/.kube/config:/root/.kube/config:ro
+      - ./charts:/app/charts
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://urumi:urumi_pass@db:5432/urumi
+    depends_on:
+      - backend
+      - redis
+
+  # 3. Frontend (React)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: urumi_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  # 4. Database
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: urumi
+      POSTGRES_PASSWORD: urumi_pass
+      POSTGRES_DB: urumi
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # 5. Redis
+  redis:
+    image: redis:7-alpine
+    restart: always
+
+volumes:
+  postgres_data:

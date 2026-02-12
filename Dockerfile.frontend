@@ -1,0 +1,18 @@
+# Dockerfile.frontend
+# Stage 1: Build
+FROM node:20-alpine as builder
+WORKDIR /app
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ .
+# Fix memory issues on small VPS
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+# Point to the internal backend URL (will be proxied)
+ENV VITE_API_URL="http://localhost:8000" 
+RUN npm run build
+
+# Stage 2: Serve
+FROM caddy:2-alpine
+COPY --from=builder /app/dist /usr/share/caddy
+# Simple Caddy config to handle React Router
+CMD ["caddy", "file-server", "--root", "/usr/share/caddy", "--listen", ":80"]

@@ -1,0 +1,25 @@
+# Dockerfile.backend
+FROM python:3.11-slim
+
+# 1. Install System Deps & Tools
+RUN apt-get update && apt-get install -y curl gnupg git && rm -rf /var/lib/apt/lists/*
+
+# 2. Install kubectl
+RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
+    chmod +x kubectl && \
+    mv kubectl /usr/local/bin/
+
+# 3. Install Helm
+RUN curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+# 4. Install Dependencies
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 5. Copy Code & Charts
+COPY app ./app
+COPY charts ./charts
+
+# 6. Default Command
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
