@@ -17,3 +17,8 @@ export interface StoreCredentials {
   username: string;
   password: string;
 }
+export interface AuditLog {
+  event: string;
+  details: string | null; 
+  timestamp: string;
+}
