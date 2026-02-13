@@ -21,7 +21,7 @@ if ! kind get clusters | grep -q "urumi-cluster"; then
     kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.kubernetes.io/component=controller --timeout=90s
 fi
 
-# 3. FIX NETWORKING (The Critical Step for VPS)
+# 3. NETWORKING 
 # The backend container needs to talk to Kind, but '127.0.0.1' inside the container
 # means the container itself, not the host. We patch the kubeconfig to use the Docker IP.
 echo "🔧 Patching Kubeconfig..."
