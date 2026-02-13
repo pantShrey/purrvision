@@ -1,10 +1,10 @@
 
 
-# Urumi Control Plane (Store Orchestrator)
+# Purrvision Control Plane (Store Orchestrator)
 
 **A production-grade Control Plane for provisioning isolated e-commerce environments on Kubernetes.**
 
-Urumi is a self-service platform that automates the deployment of WooCommerce stores. It treats every store as an **untrusted tenant**, enforcing strict network isolation, resource quotas, and security boundaries.
+Purrvision is a self-service (Provisioning) platform that automates the deployment of WooCommerce stores. It treats every store as an **untrusted tenant**, enforcing strict network isolation, resource quotas, and security boundaries.
 
 ---
 
@@ -84,8 +84,8 @@ This project is fully containerized for portability.
 
 ### 1. Clone on VPS
 ```bash
-git clone https://github.com/yourusername/urumi.git
-cd urumi
+git clone https://github.com/yourusername/purrvision.git
+cd purrvision
 ```
 
 ### 2. Run Production Deploy

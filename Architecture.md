@@ -1,6 +1,6 @@
-# Urumi Platform Architecture 
+# Purrvision Platform Architecture 
 
-Urumi is a Kubernetes-native control plane designed to provision, secure, and manage isolated e-commerce environments (WooCommerce) at scale.
+Purrvision is a Kubernetes-native control plane designed to provision, secure, and manage isolated e-commerce environments (WooCommerce) at scale.
 
 ---
 
