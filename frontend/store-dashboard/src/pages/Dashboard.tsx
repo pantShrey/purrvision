@@ -22,7 +22,7 @@ export const Dashboard = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <LayoutGrid className="h-6 w-6 text-slate-700" />
-            <h1 className="text-xl font-bold text-slate-900">Urumi Control Plane</h1>
+            <h1 className="text-xl font-bold text-slate-900">Purrvision Control Plane</h1>
           </div>
           <Button onClick={() => setIsModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />

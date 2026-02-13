@@ -27,7 +27,7 @@ def log_audit(db: Session, store_id: str, event: str, details: dict = None):
     db.add(log)
     db.commit()
 
-def run_command(cmd_list, timeout=300):
+def run_command(cmd_list, timeout=600):
     """
     Runs a shell command and returns the output.
     Raises Exception with stderr if it fails.
@@ -58,7 +58,7 @@ def provision_store_task(store_id: str):
         store.status = StoreStatus.PROVISIONING
         log_audit(db, store_id, "Provisioning Started")
         
-        env = os.getenv("URUMI_ENV", "local") 
+        env = os.getenv("PURRVISION_ENV", "local") 
         values_file = f"./charts/woocommerce/values-{env}.yaml"
         if not os.path.exists(values_file):
             raise Exception(f"Values file missing: {values_file}")
@@ -71,7 +71,7 @@ def provision_store_task(store_id: str):
             host_url = f"{store.name}.127.0.0.1.nip.io"
             protocol = "http"
         else:
-            host_url = f"{store.name}.urumi.store"
+            host_url = f"{store.name}.purrvision.store"
             protocol = "https"
 
         # HELM UPGRADE

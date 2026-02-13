@@ -6,8 +6,8 @@ echo "🚀 Setting up Local Dev Environment..."
 docker compose up -d
 
 # 2. Create Cluster
-if ! kind get clusters | grep -q "urumi-cluster"; then
-    kind create cluster --config kind-config.yaml --name urumi-cluster
+if ! kind get clusters | grep -q "purrvision-cluster"; then
+    kind create cluster --config kind-config.yaml --name purrvision-cluster
 fi
 
 # 3. Install Ingress

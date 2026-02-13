@@ -95,6 +95,8 @@ chmod +x deploy_vps.sh
 ```
 This script installs Docker/Kind, patches the Kubeconfig for container access, and launches the full stack via Docker Compose.
 
+
+Note ( in production edit both values-prod and tasks.py and put in your own domain )
 ---
 
 ## Trade-offs

@@ -22,8 +22,8 @@ mariadb:
   image:
     tag: "latest"
   auth:
-    username: "urumi_user"
-    database: "urumi_store"
+    username: "purrvision_user"
+    database: "purrvision_store"
     # Passwords injected by Python
   primary:
     persistence:

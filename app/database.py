@@ -6,7 +6,7 @@ from datetime import datetime
 import uuid
 import os
 # Connect to Docker Postgres
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/urumi_db")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/purrvision_db")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

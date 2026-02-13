@@ -104,7 +104,7 @@ def create_store(request: StoreCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_store)
 
-    q.enqueue(provision_store_task, new_store.id)
+    q.enqueue(provision_store_task, new_store.id, job_timeout = 600)
 
     return {
         "id": new_store.id,

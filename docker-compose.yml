@@ -4,17 +4,17 @@ services:
   # (Database)
   db:
     image: postgres:15
-    container_name: urumi_postgres
+    container_name: purrvision_postgres
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: urumi_db
+      POSTGRES_DB: purrvision_db
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d urumi_db"]
+      test: ["CMD-SHELL", "pg_isready -U user -d purrvision_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -22,7 +22,7 @@ services:
   # The Task Queue (Redis)
   redis:
     image: redis:7
-    container_name: urumi_redis
+    container_name: purrvision_redis
     ports:
       - "6379:6379"
     healthcheck:

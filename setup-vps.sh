@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Deploying Urumi to Production..."
+echo "🚀 Deploying Purrvision to Production..."
 
 # 1. Install Docker & Kind (if missing)
 if ! command -v kind &> /dev/null; then
@@ -12,9 +12,9 @@ if ! command -v kind &> /dev/null; then
 fi
 
 # 2. Create Cluster
-if ! kind get clusters | grep -q "urumi-cluster"; then
+if ! kind get clusters | grep -q "purrvision-cluster"; then
     echo "📦 Creating Cluster..."
-    kind create cluster --config kind-config.yaml --name urumi-cluster
+    kind create cluster --config kind-config.yaml --name purrvision-cluster
     
     echo "🌐 Installing Ingress..."
     kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
@@ -25,7 +25,7 @@ fi
 # The backend container needs to talk to Kind, but '127.0.0.1' inside the container
 # means the container itself, not the host. We patch the kubeconfig to use the Docker IP.
 echo "🔧 Patching Kubeconfig..."
-KIND_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' urumi-cluster-control-plane)
+KIND_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' purrvision-cluster-control-plane)
 sed -i "s/0.0.0.0:[0-9]*/$KIND_IP:6443/g" ~/.kube/config
 sed -i "s/127.0.0.1:[0-9]*/$KIND_IP:6443/g" ~/.kube/config
 

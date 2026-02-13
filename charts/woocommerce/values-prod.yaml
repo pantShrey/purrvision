@@ -8,4 +8,4 @@ mariadb:
       storageClass: "" 
 
 ingress:
-  host: "store.urumi.ai" # Example production domain
+  host: "store.purrvision.ai" # Example production domain
